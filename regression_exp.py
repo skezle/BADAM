@@ -17,6 +17,7 @@ config = tf.ConfigProto()
 config.gpu_options.allow_growth = True
 
 eps = 1e-8
+seed = 1
 
 class FullyConnectedNN():
 
@@ -54,6 +55,7 @@ class FullyConnectedNN():
         tf.reset_default_graph()
         self.graph = tf.Graph()
         with self.graph.as_default():
+            tf.set_random_seed(seed)
             self.sess = tf.Session(config=config)
             self.global_step = tf.train.get_or_create_global_step()
             self._init_placeholders()
@@ -129,6 +131,7 @@ class FullyConnectedNN():
         :return:
         """
         with self.graph.as_default():
+            tf.set_random_seed(seed)
             self.reg_train_x, self.reg_train_y = reg(n=n, train=True)
             for epoch in range(num_epochs):
                 num_batches = int(math.ceil(self.reg_train_x.shape[0] / float(batch_size)))
@@ -173,6 +176,7 @@ class FullyConnectedNN():
         xx = []
         yy = []
         with self.graph.as_default():
+            tf.set_random_seed(seed)
             for x, y in reg_iter(n, train=False, batch_size=batch_size):
                 xx += x[:, 0].tolist()
                 yy += y[:, 0].tolist()
@@ -201,6 +205,7 @@ class FullyConnectedNN():
         :return: None
         """
         with self.graph.as_default():
+            tf.set_random_seed(seed)
             weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
             weights = [v for v in weights if 'out' not in v.name]
             # sigmas = [tf.sqrt(self.optim.get_slot(v, "sigma"), name="ws_sqrt_{}".format(i)) for i, v in enumerate(weights)]
@@ -228,6 +233,7 @@ class FullyConnectedNN():
         """
         xx, yy, predictions = [], [], []
         with self.graph.as_default():
+            tf.set_random_seed(seed)
             if self.hparams.badam:
                 for i in range(samples):
                     self.sess.run(self.assignment_op, feed_dict=self.make_inputs_to_graph(x, y, N, train=False))
@@ -250,6 +256,7 @@ class FullyConnectedNN():
         no_train = data.shape[0]
         S = np.zeros((no_train, d))
         with self.graph.as_default():
+            tf.set_random_seed(seed)
             for i in range(no_train):
                 gg = self.sess.run(self.grads, feed_dict=self.make_inputs_to_graph(data[i].reshape(-1, 1),
                                                                                    targets[i].reshape(-1, 1),
@@ -263,6 +270,7 @@ class FullyConnectedNN():
     def predictive_dist_linear(self, x, y, N, data_var = 0.0, ggn_approx=False):
         y_preds, pred_sigmas = [], []
         with self.graph.as_default():
+            tf.set_random_seed(seed)
             weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=tf.get_variable_scope().name)
             d = sum([self.sess.run(w).size for w in weights])
             if ggn_approx:
@@ -354,6 +362,7 @@ if __name__ == "__main__":
     num_layers = 2
     dims = 50
     Ns = [200, 400, 1000]
+    Ns_sampling = [float(i) for i in np.geomspace(2000, 20000, 5)]
     l2_reg = [0.00001, 0.0001]
     for r in l2_reg:
         ###########
@@ -366,14 +375,14 @@ if __name__ == "__main__":
                                                     sigma_prior=0.1, noise_var=data_var, l2_reg=r,
                                                     badam=True, laplace_mle=False, N=n,
                                                     output_tb_gradients=False, val_time=1e2,
-                                                    tensorboard_dir='../logs', lr=learning_rate,
+                                                    tensorboard_dir='logs', lr=learning_rate,
                                                     model_folder=os.path.join(root_model_folder, 'badam' + tag),
                                                     n_samples=1, no_bias_init=True,
                                                     badam_no_out=False)
 
         model = FullyConnectedNN(hparams_badam)
-        x_train_batch, y_train_batch = model.train(tag, n, n_epochs, batch_size, n, return_batch=True, root='../')
-        test_loss = model.test(no_test, batch_size, n, tag, root='../')
+        x_train_batch, y_train_batch = model.train(tag, n, n_epochs, batch_size, n, return_batch=True, root='', verbose=False)
+        test_loss = model.test(no_test, batch_size, n, tag, root='', verbose=False)
         print("Test loss: {}".format(test_loss))
         #########
         ## Val ##
@@ -388,11 +397,11 @@ if __name__ == "__main__":
         ##########
         mipw_sampling, mipw_ll = [], []
         x, y = reg(no_test, False, seed=123)
-        for N in Ns:
+        for N in Ns_sampling:
             preds, yy, xx = model.predictive_dist_sampling(x.reshape(-1, 1), y.reshape(-1, 1), N, samples=100)
-            mipw = predictive_dist_plot_sampling(x_train_batch, y_train_batch, xx, yy, preds, tag="sampling_{0}_{1}".format(tag, N), root='../')
+            mipw = predictive_dist_plot_sampling(x_train_batch, y_train_batch, xx, yy, preds, tag="sampling_{0}_{1}".format(tag, N), root='')
             mipw_sampling.append(mipw)
         for N in Ns:
             mus, sigmas, no_params = model.predictive_dist_linear(x.reshape(-1, 1), y.reshape(-1, 1), N, data_var=0.0, ggn_approx=False) # no_params won't change for each iter
-            mipw = predictive_dist_plot(x_train_batch, y_train_batch, x, mus, sigmas, tag="ll_{0}_{1}".format(tag, N), root='../')
+            mipw = predictive_dist_plot(x_train_batch, y_train_batch, x, mus, sigmas, tag="ll_{0}_{1}".format(tag, N), root='')
             mipw_ll.append(mipw)
