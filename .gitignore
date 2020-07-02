@@ -1,2 +1,5 @@
 *.idea
 *.ipynb_checkpoints
+/logs
+/plots
+__pycache__

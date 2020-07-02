@@ -12,6 +12,14 @@ uses the squared gradients (Generalized Gauss-Newton approximation). But importa
 By interpreting adaptive subgradient methods in a Bayesian manner can we construct approximate posteriors by leveraging the
  preconditioners from these optimizers, cheaply and for free?
  
+ ## Setup
+ 
+ Required packages are listed in `requirements.txt` which contains instructions to create a conda env with the correct versions. Run:
+ 
+ `mkdir logs`
+ 
+ `mkdir plots`
+ 
  ## Method
  
  There are a couple different ways to use the curvature estimates from Adam as an estimate of uncertainty in the loss landscape.
